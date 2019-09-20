@@ -3,7 +3,7 @@
 
 const int buttonPin = 2;
 const int tempDataPin = 4;
-int testing = 0;
+String testing;
 int buttonState = 0;
 OneWire oneWire(tempDataPin);
 DallasTemperature sensors(&oneWire);
@@ -25,10 +25,10 @@ void setup() {
 
 void loop() {
  // delay(100);
-   
+  testing = "";
   buttonState = digitalRead(buttonPin);
-  Serial.println("Hello");
-  //delay(100);
+  testing = Serial.readString();
+  //delay(250);
   //delay(100);
     
   if(buttonState == HIGH){
@@ -41,8 +41,10 @@ void loop() {
     Serial.print(" - Fahrenheit temperature: ");
     //Serial.println(sensors.getTempFByIndex(0));
   }else{
-    testing = Serial.read();
-    delay(100);
+    //testing = Serial.read();
+    Serial.print(testing);
+    Serial.flush();
+    //delay(250);
     if(testing == 1){
         digitalWrite(LED_BUILTIN, HIGH);
     }
