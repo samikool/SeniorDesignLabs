@@ -1,9 +1,6 @@
 #include <OneWire.h>
 #include <DallasTemperature.h>
 
-
-
-
 const int buttonPin = 2;
 const int tempDataPin = 4;
 int testing = 0;
@@ -15,11 +12,13 @@ int sensetest = 0;
 
 void setup() {
   pinMode(buttonPin, INPUT);
+  pinMode(LED_BUILTIN, OUTPUT);
   //delay(100);
   //pinMode(tempDataPin, INPUT);
 
   Serial.begin(9600);
   sensors.begin();
+  Serial.println("Starting Loop");
  
   //delay(1000);
 }
@@ -28,11 +27,12 @@ void loop() {
  // delay(100);
    
   buttonState = digitalRead(buttonPin);
+  Serial.println("Hello");
   //delay(100);
   //delay(100);
     
   if(buttonState == HIGH){
-      sensors.requestTemperatures();
+    sensors.requestTemperatures();
     Serial.println("High");
     
     Serial.print("Celsius temperature: ");
@@ -42,9 +42,13 @@ void loop() {
     //Serial.println(sensors.getTempFByIndex(0));
   }else{
     testing = Serial.read();
-    Serial.print("Testing: ");
-    Serial.println(testing);
-    Serial.println("-");
+    delay(100);
+    if(testing == 1){
+        digitalWrite(LED_BUILTIN, HIGH);
+    }
+    //Serial.print("Testing: ");
+    //Serial.println(testing);
+    //Serial.println("-");
   }
 
   delay(1000);
