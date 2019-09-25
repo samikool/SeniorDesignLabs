@@ -31,6 +31,9 @@ def recieve():
     print(decoded_bytes)
     return decoded_bytes
 
+def sendText(message):
+    
+
 #arduino = serial.Serial('COM3', 9600, timeout=0)
 
 while True:
