@@ -1,5 +1,6 @@
 import serial
 import time
+from twilio.rest import Client
 
 def saveFile(data):
     file = open("data.dat", "w+")
@@ -32,9 +33,19 @@ def recieve():
     return decoded_bytes
 
 def sendText(message):
-    
+    # Your Account Sid and Auth Token from twilio.com/console
+    # DANGER! This is insecure. See http://twil.io/secure
+    account_sid = 'AC073d9e745d5a5da8e7fbe7bbfba84102'
+    auth_token = 'd2031f6ed8a3aeb15b1666628c076ae9'
+    client = Client(account_sid, auth_token)
+
+    message = client.messages.create(body=message,from_='+13092048749',to='+13092359608')
+
+    print(message.sid)
 
 #arduino = serial.Serial('COM3', 9600, timeout=0)
+
+sendText("Hello")
 
 while True:
     
