@@ -1,6 +1,8 @@
 import serial
 import time
 from twilio.rest import Client
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
 
 def saveFile(data):
     file = open("data.dat", "w+")
@@ -24,8 +26,8 @@ def send(message):
         print("Sending" + message)
 
 def recieve():
-    while arduino.in_waiting == 0:
-                time.sleep(.001)
+    while arduino.in_waiting < 7:
+            time.sleep(.001)
     b = arduino.readline()
     string_n = b.decode()
     decoded_bytes = string_n.rstrip()
@@ -43,12 +45,43 @@ def sendText(message):
 
     print(message.sid)
 
-#arduino = serial.Serial('COM3', 9600, timeout=0)
+def graphPoints(datax, temperatures):
+    plt.xlim(300,0)
+    plt.ylim(-20,40)
+    plt.show
+    plt.autoscale(False)
+    plt.title('TMP102 Temperature over Time')
+    plt.xlabel('Samples')
+    plt.ylabel('Temperature (deg C)')
+    plt.plot(datax, temperatures)
+    plt.draw()
+    plt.pause(0.0001)
+    plt.clf()
 
-sendText("Hello")
+#Setting up graph
+plt.ion
+plt.xlim(300,0)
+plt.ylim(-20,40)
+plt.show
+plt.autoscale(False)
+plt.title('TMP102 Temperature over Time')
+plt.xlabel('Samples')
+plt.ylabel('Temperature (deg C)')
+
+
+arduino = serial.Serial('COM3', 9600, timeout=0)
+
+temperatures = []
+#for i in range(0,300,1):
+#    temperatures.append(-127)
+
+datax = []
+#for i in range(0,300,1):
+#    datax.append(i)
+
+count = 0
 
 while True:
-    
     #graph null points
     #possibly break if able to open port
     if not arduino.is_open:
@@ -57,21 +90,22 @@ while True:
         
     #graph data from sensor
     else:
-        string = 'hello\n'
-        string = string.encode('utf-8')
-        arduino.write(string)
-        arduino.flush()
-        while arduino.out_waiting != 0:
-            print("Sending data")
-        
-        try:
-            while arduino.in_waiting == 0:
-                time.sleep(.001)
-            b = arduino.readline()
-            string_n = b.decode()
-            decoded_bytes = string_n.rstrip()
-            print(decoded_bytes)
+        temperatures.insert(0,float(recieve()))
+        datax.append(count)
 
+        graphPoints(datax,temperatures)
+        
+        
+
+        
+        count = count + 1
+        if(count == 300):
+            count = 0
+
+        
+
+        try:
+            
             time.sleep(.1)
         except Exception as e:
             print(e)
