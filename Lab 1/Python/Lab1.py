@@ -69,7 +69,11 @@ plt.xlabel('Samples')
 plt.ylabel('Temperature (deg C)')
 
 
-arduino = serial.Serial('COM3', 9600, timeout=0)
+try:
+    if serial.Serial('COM3', 9600, timeout=0).isOpen():
+        arduino = serial.Serial('COM3', 9600, timeout=0)
+except Exception as e:
+    print(e)
 
 temperatures = []
 #for i in range(0,300,1):
@@ -80,32 +84,32 @@ datax = []
 #    datax.append(i)
 
 count = 0
+connected = False
 
 while True:
     #graph null points
     #possibly break if able to open port
-    if not arduino.is_open:
-
-        arduino = serial.Serial('COM3', 9600, timeout=0)
-        
+    
+    try:
+        if connected == False and serial.Serial('COM3', 9600, timeout=0).isOpen():
+            arduino = serial.Serial('COM3', 9600, timeout=0)
+            connected = True
+    except Exception as e:
+        print(e)
+        time.sleep(.5)
+    
     #graph data from sensor
     else:
         temperatures.insert(0,float(recieve()))
         datax.append(count)
 
         graphPoints(datax,temperatures)
-        
-        
 
-        
         count = count + 1
         if(count == 300):
             count = 0
-
-        
-
-        try:
             
+        try:
             time.sleep(.1)
         except Exception as e:
             print(e)

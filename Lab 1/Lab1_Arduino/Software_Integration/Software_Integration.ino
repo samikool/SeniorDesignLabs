@@ -40,6 +40,8 @@
 // Use hardware SPI (faster - on Uno: 13-SCK, 12-MISO, 11-MOSI)
 TFT_22_ILI9225 tft = TFT_22_ILI9225(TFT_RST, TFT_RS, TFT_CS, TFT_LED, TFT_BRIGHTNESS);
 
+boolean tempProbeConnected();
+void displayDisconnected();
 
 //Variables and constants
 int x, y;
@@ -63,108 +65,66 @@ void setup() {
   pinMode(tempDataPin, INPUT);
   
   sensors.begin();
+
+  //initialize display
   tft.begin();
   tft.clear();
+  tft.setFont(Terminal12x16);
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
+  // put your main code here, to run repeatedly
   valRocker = digitalRead(RockerSwitch);  // read input value
 
 //If Switch is turned on
-  if (valRocker == LOW) {         // check if the Switch is (- On)[Wired backwards]
-    //Serial.println("Power Switch: ON");
+  if (valRocker == LOW) { // check if the Switch is (- On)[Wired backwards]
+      sensors.requestTemperatures();
+      if (tempProbeConnected()){//check if probe connected
+        //send data
+        Serial.println(sensors.getTempCByIndex(0));
 
-
-    sensors.requestTemperatures();
-
-    if (sensors.getTempCByIndex(0) == -127){
-      //Serial.print("Sensor not connected");
-        tft.setFont(Terminal12x16);
-        tft.drawText(0, 60, "Temperature Probe", COLOR_RED);    
-        tft.drawText(0, 90, "Not Connected", COLOR_RED);    
-        delay(100);
-        
-    } else {
-
-      /*
-      Serial.println("High");
-      Serial.print("Celsius temperature: ");
-      Serial.print(sensors.getTempCByIndex(0)); 
-      Serial.print(" - Fahrenheit temperature: ");
-      Serial.println(sensors.getTempFByIndex(0));
-      TextOut = sensors.getTempCByIndex(0);*/
-      Serial.println(sensors.getTempCByIndex(0));
-
-
-      valPush = digitalRead(PushPin);  // read input value of Pushbutton
-
-    //if pushbutton is pressed
-      
-
-      delay(10);
-      while (valPush == HIGH && valRocker==LOW) {         // If pushbutton pressed and Switch on 
-    
-        //Serial.println("Pushbutton Pressed");
-        
-        //Output to LCD if Pushbutton is Pressed
-        tft.setFont(Terminal12x16);
-        tft.drawText(20, 60, "Temperature:", COLOR_RED);
-
+        //read uboyt value of pushbutton
+        valPush = digitalRead(PushPin);  
         delay(10);
-        sensors.requestTemperatures();
-        if (sensors.getTempCByIndex(0) == -127){
-           //Serial.print("Sensor not connected");
-            tft.setFont(Terminal12x16);
-            tft.drawText(0, 60, "Temperature Probe", COLOR_RED);    
-            tft.drawText(0, 90, "Not Connected", COLOR_RED);    
-            delay(100);        
-        } else {
-      
-          //Serial.print("Celsius temperature: ");
-          //Serial.print(sensors.getTempCByIndex(0)); 
-          //Serial.print(" - Fahrenheit temperature: ");
-          //Serial.println(sensors.getTempFByIndex(0));
+
+        //if button is pressed
+        if (valPush == HIGH) {      
+          //Output to LCD if Pushbutton is Pressed
+          tft.setFont(Terminal12x16);
+          tft.drawText(20, 60, "Temperature:", COLOR_RED);
+          
           TextOut = sensors.getTempCByIndex(0);
       
           tft.drawText(45, 120, TextOut, COLOR_TOMATO);
           tft.drawText(110, 120, "*C", COLOR_TOMATO);
+        }else{
+          //if button is low erase text
+          tft.clear();
+          tft.setBackgroundColor(COLOR_BLACK);
         }
-        
-        valRocker = digitalRead(RockerSwitch);  // read input value
-        valPush = digitalRead(PushPin);  // read input value of Pushbutton
-      }
-      
-    } 
-    
-    if (valPush == LOW && valRocker == LOW){ //If Pushbutton not pressed but switch on
-      //Serial.println("Pushbutton not pressed");  //Output if Button is released
-
+      }else {
+        //if probe disconnected display error on screen
+        displayDisconnected();
+      }    
+    }
+    else{ 
+      //If power switch is off
       tft.clear();
       tft.setBackgroundColor(COLOR_BLACK);
-
-      if (sensors.getTempCByIndex(0) == -127){
-        //Serial.print("Sensor not connected");
-        tft.setFont(Terminal12x16);
-        tft.drawText(0, 60, "Temperature Probe", COLOR_RED);    
-        tft.drawText(0, 90, "Not Connected", COLOR_RED);    
-        delay(100);
-      }
-
-      valRocker = digitalRead(RockerSwitch);  // read input value
-      valPush = digitalRead(PushPin);  // read input value of Pushbutton
-      
-    }
-    delay(20);
-
-
-
-  } else { //If power switch is off
-    //Serial.println("Power Switch: OFF");  //Output if Power button is (0 Off)
-     
-    tft.clear();
-    tft.setBackgroundColor(COLOR_BLACK);
-  }
-
+     }
   delay(10);
+}
+
+boolean tempProbeConnected(){
+    if (sensors.getTempCByIndex(0) == -127){
+        //Serial.print("Sensor not connected");
+        return false;
+    }
+    return true;
+}
+
+void displayDisconnected(){
+      tft.setFont(Terminal12x16);
+      tft.drawText(0, 60, "Temperature Probe", COLOR_RED);    
+      tft.drawText(0, 90, "Not Connected", COLOR_RED); 
 }
