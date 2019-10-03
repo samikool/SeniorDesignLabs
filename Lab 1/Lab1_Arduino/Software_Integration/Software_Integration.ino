@@ -82,38 +82,29 @@ void loop() {
 //If Switch is turned on
   if (valRocker == LOW) { // check if the Switch is (- On)[Wired backwards]
       sensors.requestTemperatures();
+      while(Serial.available() == 0){
+        
+      }
+
+      if(Serial.available() > 0){
+        input = Serial.readString();
+        state = input.toInt();
+      }
+      
       if (tempProbeConnected()){//check if probe connected
-        //send data
-        //Serial.println(sensors.getTempCByIndex(0));
+        //wait for state from python script
         
-        /*if(Serial.available() != 0){
-          input = Serial.readString();
-          state = input.toInt();
-        }
-        //Serial.println(Serial.available());
-        //Serial.println(input); 
-        if(state == 1){
-          Serial.println(sensors.getTempCByIndex(0));
-        }else{
-          Serial.println("0");
-        }*/
-        
-        while(Serial.available() == 0){
-   
-        }
-
-        if(Serial.available() > 0){
-          input = Serial.readString();
-          state = input.toInt();
-        }
        
-
+        //state == 0 then report temperature
+        //state == 1 report then turn screen on until state = 0
+        //
+        
         if(state == 1){
           Serial.println(sensors.getTempCByIndex(0));
         }else{
           Serial.println("0");
         }
-        Serial.flush();
+        //Serial.flush();
 
         //read uboyt value of pushbutton
         valPush = digitalRead(PushPin);  
@@ -137,6 +128,7 @@ void loop() {
       }else {
         //if probe disconnected display error on screen
         displayDisconnected();
+        Serial.println("00000");
       }    
     }
     else{ 
@@ -144,7 +136,8 @@ void loop() {
       tft.clear();
       tft.setBackgroundColor(COLOR_BLACK);
      }
-  delay(10);
+    state = -1;
+    delay(10);
 }
 
 boolean tempProbeConnected(){

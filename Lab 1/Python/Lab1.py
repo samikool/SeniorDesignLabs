@@ -1,8 +1,9 @@
 import serial
 import time
+import numpy as np
 from twilio.rest import Client
+import pyrebase
 import matplotlib.pyplot as plt
-import matplotlib.animation as animation
 
 def saveFile(data):
     file = open("data.dat", "w+")
@@ -20,10 +21,8 @@ def loadFile(data):
     return data
 
 def send(message):
-    while(arduino.out_waiting != 0):
-        time.sleep(.1)
     arduino.write(message.encode())
-    #arduino.flush()
+    arduino.flush()
 
 def recieve():
     while arduino.in_waiting < 7:
@@ -32,6 +31,7 @@ def recieve():
     string_n = b.decode()
     decoded_bytes = string_n.rstrip()
     print(decoded_bytes)
+    arduino.reset_input_buffer()
     return decoded_bytes
 
 def sendText(message):
@@ -47,7 +47,7 @@ def sendText(message):
 
 def graphPoints(datax, temperatures):
     plt.xlim(300,0)
-    plt.ylim(-20,40)
+    plt.ylim(10,50)
     plt.show
     plt.autoscale(False)
     plt.title('TMP102 Temperature over Time')
@@ -57,16 +57,16 @@ def graphPoints(datax, temperatures):
     plt.draw()
     plt.pause(0.0001)
     plt.clf()
-
-#Setting up graph
-plt.ion
-plt.xlim(300,0)
-plt.ylim(-20,40)
-plt.show
-plt.autoscale(False)
-plt.title('TMP102 Temperature over Time')
-plt.xlabel('Samples')
-plt.ylabel('Temperature (deg C)')
+#Firebase Setup
+config = {
+  "apiKey": "AIzaSyB2mbXG7qK3_o3q8tZNY-FbHTwrK972iyQ",
+  "authDomain": "seniordesignlab1-2099a.firebaseapp.com",
+  "databaseURL": "https://seniordesignlab1-2099a.firebaseio.com",
+  "storageBucket": "",
+  "serviceAccount": "credentials.json"
+}
+firebase = pyrebase.initialize_app(config)
+database = firebase.database()
 
 temperatures = []
 #for i in range(0,300,1):
@@ -80,35 +80,34 @@ count = 0
 connected = False
 state = 1
 
-while True:
-    #graph null points
-    #possibly break if able to open port
-    
+while True:    
     try:
         if connected == False:
             if serial.Serial('COM3', 9600, timeout=0).isOpen():
                 arduino = serial.Serial('COM3', 9600, timeout=0)
                 connected = True
-                time.sleep(2)
+                time.sleep(3)
     except Exception as e:
         print(e)
+        connected = False
         time.sleep(.5)
     
-    #graph data from sensor  
+    #send state to arduino
     send(str(state))
 
-    temperatures.insert(0,float(recieve()))
+    #read temperature in C & add x value
+    measurement = str(recieve())
+    if(measurement == "00000" or measurement == "85.00"):
+        measurement = np.nan
+        temperatures.insert(0, float(measurement))
+    else:
+        temperatures.insert(0, float(measurement))
     datax.append(count)
+    
+    #graph data
     graphPoints(datax,temperatures)
 
+    #Graph point
     count += 1
     if(count == 300):
         count = 0
-        
-    try:
-        time.sleep(.1)
-    except Exception as e:
-        print(e)
-
-        
-    
