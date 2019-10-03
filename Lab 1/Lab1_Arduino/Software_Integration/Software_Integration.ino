@@ -52,7 +52,8 @@ int valRocker = 0;     // variable for reading the pin status of RockerSwitch
 int PushPin = 2;   // choose the input pin (for a pushbutton)
 int valPush = 0;     // variable for reading the pushbutton pin status
 const int tempDataPin = 4;
-String testing;
+String input = "0";
+int state = 0;
 OneWire oneWire(tempDataPin);
 DallasTemperature sensors(&oneWire);
 
@@ -76,12 +77,43 @@ void loop() {
   // put your main code here, to run repeatedly
   valRocker = digitalRead(RockerSwitch);  // read input value
 
+  
+  
 //If Switch is turned on
   if (valRocker == LOW) { // check if the Switch is (- On)[Wired backwards]
       sensors.requestTemperatures();
       if (tempProbeConnected()){//check if probe connected
         //send data
-        Serial.println(sensors.getTempCByIndex(0));
+        //Serial.println(sensors.getTempCByIndex(0));
+        
+        /*if(Serial.available() != 0){
+          input = Serial.readString();
+          state = input.toInt();
+        }
+        //Serial.println(Serial.available());
+        //Serial.println(input); 
+        if(state == 1){
+          Serial.println(sensors.getTempCByIndex(0));
+        }else{
+          Serial.println("0");
+        }*/
+        
+        while(Serial.available() == 0){
+   
+        }
+
+        if(Serial.available() > 0){
+          input = Serial.readString();
+          state = input.toInt();
+        }
+       
+
+        if(state == 1){
+          Serial.println(sensors.getTempCByIndex(0));
+        }else{
+          Serial.println("0");
+        }
+        Serial.flush();
 
         //read uboyt value of pushbutton
         valPush = digitalRead(PushPin);  

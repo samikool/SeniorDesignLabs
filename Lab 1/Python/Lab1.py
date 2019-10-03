@@ -20,14 +20,14 @@ def loadFile(data):
     return data
 
 def send(message):
-    arduino.write(message)
-    arduino.flush()
-    while arduino.out_waiting != 0:
-        print("Sending" + message)
+    while(arduino.out_waiting != 0):
+        time.sleep(.1)
+    arduino.write(message.encode())
+    #arduino.flush()
 
 def recieve():
     while arduino.in_waiting < 7:
-            time.sleep(.001)
+        time.sleep(.001)
     b = arduino.readline()
     string_n = b.decode()
     decoded_bytes = string_n.rstrip()
@@ -68,13 +68,6 @@ plt.title('TMP102 Temperature over Time')
 plt.xlabel('Samples')
 plt.ylabel('Temperature (deg C)')
 
-
-try:
-    if serial.Serial('COM3', 9600, timeout=0).isOpen():
-        arduino = serial.Serial('COM3', 9600, timeout=0)
-except Exception as e:
-    print(e)
-
 temperatures = []
 #for i in range(0,300,1):
 #    temperatures.append(-127)
@@ -85,34 +78,37 @@ datax = []
 
 count = 0
 connected = False
+state = 1
 
 while True:
     #graph null points
     #possibly break if able to open port
     
     try:
-        if connected == False and serial.Serial('COM3', 9600, timeout=0).isOpen():
-            arduino = serial.Serial('COM3', 9600, timeout=0)
-            connected = True
+        if connected == False:
+            if serial.Serial('COM3', 9600, timeout=0).isOpen():
+                arduino = serial.Serial('COM3', 9600, timeout=0)
+                connected = True
+                time.sleep(2)
     except Exception as e:
         print(e)
         time.sleep(.5)
     
-    #graph data from sensor
-    else:
-        temperatures.insert(0,float(recieve()))
-        datax.append(count)
+    #graph data from sensor  
+    send(str(state))
 
-        graphPoints(datax,temperatures)
+    temperatures.insert(0,float(recieve()))
+    datax.append(count)
+    graphPoints(datax,temperatures)
 
-        count = count + 1
-        if(count == 300):
-            count = 0
-            
-        try:
-            time.sleep(.1)
-        except Exception as e:
-            print(e)
+    count += 1
+    if(count == 300):
+        count = 0
+        
+    try:
+        time.sleep(.1)
+    except Exception as e:
+        print(e)
 
         
     
