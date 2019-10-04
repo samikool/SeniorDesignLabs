@@ -198,8 +198,16 @@ def set_min_max():
     global minTemp 
     global maxTemp 
 
-    minTemp = float(min_entry.get())
-    maxTemp = float(max_entry.get())
+    if(min_entry.get() != ""):
+        try:
+            minTemp = float(min_entry.get())
+        except Exception as e:
+            minTemp = -100
+    if(max_entry.get() != ""):
+        try:
+            maxTemp = float(max_entry.get())
+        except Exception as e:
+            maxTemp = 100
 
 
     print("Set min to " + str(minTemp))
