@@ -16,6 +16,7 @@ account_sid = ''
 auth_token = ''
 fromPhone = ''
 toPhone = ''
+connected = False
 
 ##################################################
 def saveFile(data):
@@ -34,21 +35,33 @@ def loadFile(data):
     return data
 ##################################################
 def send(message):
-    global arduino
-    arduino.write(message.encode())
-    arduino.flush()
-    print(message + " sent")
+    try:
+        global arduino
+        global connected
+        arduino.write(message.encode())
+        arduino.flush()
+        print(message + " sent")
+    except Exception as e:
+        print(e)
+        connected = False
+        
 
 def recieve():
     global arduino
-    while arduino.in_waiting < 7:
-        time.sleep(.001)
-    b = arduino.readline()
-    string_n = b.decode()
-    decoded_bytes = string_n.rstrip()
-    print(decoded_bytes)
-    arduino.reset_input_buffer()
-    return decoded_bytes
+    global connected
+    try:
+        while arduino.in_waiting < 7:
+            time.sleep(.001)
+        b = arduino.readline()
+        string_n = b.decode()
+        decoded_bytes = string_n.rstrip()
+        print(decoded_bytes)
+        arduino.reset_input_buffer()
+        return decoded_bytes
+    except Exception as e:
+        print(e)
+        connected = False
+        return np.nan
 ###################################################
 def sendText(message):
     # Your Account Sid and Auth Token from twilio.com/console
@@ -98,7 +111,7 @@ def mainLoop():
     #    datax.append(i)
 
     count = 0
-    connected = False
+    global connected
     state = 0
     global arduino
     global temperature_display_text
@@ -117,57 +130,56 @@ def mainLoop():
         except Exception as e:
             print(e)
             connected = False
-            time.sleep(.5)
+            time.sleep(3)
         
         #send state to arduino
         #send(str(state))
 
         #read temperature in C & add x value
-        measurement = str(recieve())
-        if(measurement == "00000" or measurement == "85.00"):
-            measurement = np.nan
-            if(len(datax) == 300):
-                temperatures.pop(299)
-                temperatures.insert(0, float(measurement))
+        if(connected):
+            measurement = str(recieve())
+            if(measurement == "00000" or measurement == "85.00"):
+                measurement = np.nan
+                if(len(datax) == 300):
+                    temperatures.pop(299)
+                    temperatures.insert(0, float(measurement))
+                else:
+                    temperatures.insert(0, float(measurement))
+                    datax.append(count)
+                temperature_display_text.set("Probe Disconnected")
+            elif (measurement == "00001"):
+                measurement = np.nan
+                if(len(datax) == 300):
+                    temperatures.pop(299)
+                    temperatures.insert(0, float(measurement))
+                else:
+                    temperatures.insert(0, float(measurement))
+                    datax.append(count)
+                temperature_display_text.set("No Data")
             else:
-                temperatures.insert(0, float(measurement))
-                datax.append(count)
-            temperature_display_text.set("Probe Disconnected")
-        elif (measurement == "00001"):
-            measurement = np.nan
-            if(len(datax) == 300):
-                temperatures.pop(299)
-                temperatures.insert(0, float(measurement))
-            else:
-                temperatures.insert(0, float(measurement))
-                datax.append(count)
-            temperature_display_text.set("No Data")
-        else:
-            if(len(datax) == 300):
-                temperatures.pop(299)
-                temperatures.insert(0, float(measurement))
-            else:
-                temperatures.insert(0, float(measurement))
-                datax.append(count)
-            if(displayC):
-                temperature_display_text.set("Temperature: " + measurement + " *C")
-            else:
-                measurement = str(round(float(measurement) * 9/5 + 32,2))
-                temperature_display_text.set("Temperature: " + measurement + " *F")
+                if(len(datax) == 300):
+                    temperatures.pop(299)
+                    temperatures.insert(0, float(measurement))
+                else:
+                    temperatures.insert(0, float(measurement))
+                    datax.append(count)
+                if(displayC):
+                    temperature_display_text.set("Temperature: " + measurement + " *C")
+                else:
+                    measurement = str(round(float(measurement) * 9/5 + 32,2))
+                    temperature_display_text.set("Temperature: " + measurement + " *F")
 
-            if(not textSent):
-                if(float(measurement) < minTemp):
-                    sendText("TEMPERATURE IS TOO COLD!")
-                    textSent = True
-                elif(float(measurement) > maxTemp):
-                    sendText("TEMPERATURE IS TOO HOT!")
-                    textSent = True
-        #graph data
-        graphPoints(datax,temperatures)
-        if(count < 300):
-            count += 1
-        
-        #Graph point
+                if(not textSent):
+                    if(float(measurement) < minTemp):
+                        sendText("TEMPERATURE IS TOO COLD!")
+                        textSent = True
+                    elif(float(measurement) > maxTemp):
+                        sendText("TEMPERATURE IS TOO HOT!")
+                        textSent = True
+            #graph data
+            graphPoints(datax,temperatures)
+            if(count < 300):
+                count += 1
         
 
 on = False
