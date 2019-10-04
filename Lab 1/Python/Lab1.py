@@ -288,8 +288,11 @@ change_phone_label.place(relx=0, rely=0, relheight=1, relwidth=1)
 change_phone_frame = tk.Frame(root, bg='#80d4ff', bd=5)
 change_phone_frame.place(relx=0.5, rely=.650, relwidth=0.75, relheight=0.075, anchor='n')
 
+change_phone_area_label = tk.Label(change_phone_frame, text="+1", font=20, bg = "LightGreen")
+change_phone_area_label.place(relx=0.0, rely=0, relwidth=.15, relheight=1)
+
 change_phone_entry = tk.Entry(change_phone_frame, font=20)
-change_phone_entry.place(relx=0, rely=0, relwidth=.75, relheight=1)
+change_phone_entry.place(relx=.15, rely=0, relwidth=.65, relheight=1)
 
 change_phone_button = tk.Button(change_phone_frame, text="set", font=20, bg="LightGreen", command=set_number)
 change_phone_button.place(relx=.75, rely=0, relwidth=.25, relheight=1)
