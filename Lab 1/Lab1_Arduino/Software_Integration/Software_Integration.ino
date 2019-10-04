@@ -54,6 +54,7 @@ int valPush = 0;     // variable for reading the pushbutton pin status
 const int tempDataPin = 4;
 String input = "0";
 int state = 0;
+int readyy = 0;
 OneWire oneWire(tempDataPin);
 DallasTemperature sensors(&oneWire);
 
@@ -77,41 +78,28 @@ void loop() {
   // put your main code here, to run repeatedly
   valRocker = digitalRead(RockerSwitch);  // read input value
 
-  
-  
-//If Switch is turned on
-  if (valRocker == LOW) { // check if the Switch is (- On)[Wired backwards]
-      sensors.requestTemperatures();
-      while(Serial.available() == 0){
-        
-      }
-
-      if(Serial.available() > 0){
+  if(Serial.available() > 0){
         input = Serial.readString();
         state = input.toInt();
-      }
+        if(readyy == 0 && state == 1){
+          readyy = 1;
+        }
+  }
+  
+//If Switch is turned on
+  if (valRocker == LOW && readyy == 1) { // check if the Switch is (- On)[Wired backwards]
+      sensors.requestTemperatures();
       
       if (tempProbeConnected()){//check if probe connected
         //wait for state from python script
+        Serial.println(sensors.getTempCByIndex(0));
         
-       
-        //state == 0 then report temperature
-        //state == 1 report then turn screen on until state = 0
-        //
-        
-        if(state == 1){
-          Serial.println(sensors.getTempCByIndex(0));
-        }else{
-          Serial.println("0");
-        }
-        //Serial.flush();
-
         //read uboyt value of pushbutton
         valPush = digitalRead(PushPin);  
         delay(10);
 
         //if button is pressed
-        if (valPush == HIGH) {      
+        if (valPush == HIGH || state == 2) {      
           //Output to LCD if Pushbutton is Pressed
           tft.setFont(Terminal12x16);
           tft.drawText(20, 60, "Temperature:", COLOR_RED);
@@ -129,14 +117,16 @@ void loop() {
         //if probe disconnected display error on screen
         displayDisconnected();
         Serial.println("00000");
+        delay(800);
       }    
     }
     else{ 
       //If power switch is off
+      Serial.println("00001");
       tft.clear();
       tft.setBackgroundColor(COLOR_BLACK);
+      delay(800);
      }
-    state = -1;
     delay(10);
 }
 
