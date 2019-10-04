@@ -68,7 +68,7 @@ def graphPoints(datax, temperatures):
     plt.ylim(10,50)
     plt.show
     plt.autoscale(False)
-    plt.title('TMP102 Temperature over Time')
+    plt.title('Temperature over Time')
     plt.xlabel('Seconds Passed Since Measurement')
     plt.ylabel('Temperature (*C)')
     plt.plot(datax, temperatures)
@@ -126,17 +126,29 @@ def mainLoop():
         measurement = str(recieve())
         if(measurement == "00000" or measurement == "85.00"):
             measurement = np.nan
-            temperatures.insert(0, float(measurement))
-            datax.append(count)
+            if(len(datax) == 300):
+                temperatures.pop(299)
+                temperatures.insert(0, float(measurement))
+            else:
+                temperatures.insert(0, float(measurement))
+                datax.append(count)
             temperature_display_text.set("Probe Disconnected")
         elif (measurement == "00001"):
             measurement = np.nan
-            temperatures.insert(0, float(measurement))
-            datax.append(count)
+            if(len(datax) == 300):
+                temperatures.pop(299)
+                temperatures.insert(0, float(measurement))
+            else:
+                temperatures.insert(0, float(measurement))
+                datax.append(count)
             temperature_display_text.set("No Data")
         else:
-            temperatures.insert(0, float(measurement))
-            datax.append(count)
+            if(len(datax) == 300):
+                temperatures.pop(299)
+                temperatures.insert(0, float(measurement))
+            else:
+                temperatures.insert(0, float(measurement))
+                datax.append(count)
             if(displayC):
                 temperature_display_text.set("Temperature: " + measurement + " *C")
             else:
@@ -152,11 +164,11 @@ def mainLoop():
                     textSent = True
         #graph data
         graphPoints(datax,temperatures)
-
+        if(count < 300):
+            count += 1
+        
         #Graph point
-        count += 1
-        if(count == 300):
-            count = 0
+        
 
 on = False
 
