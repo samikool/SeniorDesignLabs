@@ -130,7 +130,7 @@ def mainLoop():
         except Exception as e:
             print(e)
             connected = False
-            time.sleep(3)
+            time.sleep(.85)
         
         #send state to arduino
         #send(str(state))
@@ -180,7 +180,18 @@ def mainLoop():
             graphPoints(datax,temperatures)
             if(count < 300):
                 count += 1
-        
+        else:
+            measurement = np.nan
+            if(len(datax) == 300):
+                temperatures.pop(299)
+                temperatures.insert(0, float(measurement))
+            else:
+                temperatures.insert(0, float(measurement))
+                datax.append(count)
+            graphPoints(datax,temperatures)
+            if(count < 300):
+                count += 1
+                
 
 on = False
 
@@ -230,6 +241,7 @@ def set_number():
     global auth_token
     global fromPhone
     global toPhone
+    global textSent
 
     if(change_phone_entry.get() == ('3198999264')):
         account_sid = 'ACa77a0e8b75884a4ff3ab693eb54f1c60'
@@ -242,7 +254,9 @@ def set_number():
         auth_token = 'caabf8a7c686a7d9fc258ca307fbd1e0'
         fromPhone = '+1' + '9073181809'
         toPhone = '+1' + '3196711709'
-        print("Phone set to +1 319-671-1709")    
+        print("Phone set to +1 319-671-1709")
+
+    textSent = False
 
 
 root = tk.Tk()

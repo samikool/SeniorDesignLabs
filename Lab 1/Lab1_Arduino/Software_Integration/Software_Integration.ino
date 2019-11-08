@@ -77,6 +77,8 @@ void setup() {
 void loop() {
   // put your main code here, to run repeatedly
   valRocker = digitalRead(RockerSwitch);  // read input value
+  valPush = digitalRead(PushPin);  
+
 
   if(Serial.available() > 0){
         input = Serial.readString();
@@ -86,17 +88,36 @@ void loop() {
         }
   }
   
+  sensors.requestTemperatures();
+
+  if(readyy != 1 && valPush == HIGH && valRocker == LOW){
+    if(tempProbeConnected()){
+  
+      tft.setFont(Terminal12x16);
+      tft.drawText(20, 60, "Temperature:", COLOR_RED);
+    
+      TextOut = sensors.getTempCByIndex(0);
+
+      tft.drawText(45, 120, TextOut, COLOR_TOMATO);
+      tft.drawText(110, 120, "*C", COLOR_TOMATO);
+    }else{
+      displayDisconnected();  
+    }
+   
+  }else if(readyy != 1 && (valPush == LOW || valRocker == HIGH)){
+    tft.clear();
+    tft.setBackgroundColor(COLOR_BLACK);
+  }
+
+  
+  
 //If Switch is turned on
   if (valRocker == LOW && readyy == 1) { // check if the Switch is (- On)[Wired backwards]
-      sensors.requestTemperatures();
-      
       if (tempProbeConnected()){//check if probe connected
         //wait for state from python script
         Serial.println(sensors.getTempCByIndex(0));
         
         //read uboyt value of pushbutton
-        valPush = digitalRead(PushPin);  
-        delay(10);
 
         //if button is pressed
         if (valPush == HIGH || state == 2) {      
@@ -120,7 +141,7 @@ void loop() {
         delay(800);
       }    
     }
-    else{ 
+    else if(valRocker == HIGH && valPush == LOW){ 
       //If power switch is off
       Serial.println("00001");
       tft.clear();
@@ -140,6 +161,7 @@ boolean tempProbeConnected(){
 
 void displayDisconnected(){
       tft.setFont(Terminal12x16);
-      tft.drawText(0, 60, "Temperature Probe", COLOR_RED);    
-      tft.drawText(0, 90, "Not Connected", COLOR_RED); 
+      tft.drawText(0, 60, "Temperature", COLOR_RED);
+      tft.drawText(0, 90, "Probe", COLOR_RED);    
+      tft.drawText(0, 120, "Not Connected", COLOR_RED); 
 }

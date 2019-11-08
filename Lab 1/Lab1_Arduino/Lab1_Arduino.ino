@@ -27,7 +27,7 @@ void loop() {
  // delay(100);
   testing = "";
   buttonState = digitalRead(buttonPin);
-  testing = Serial.readString();
+  testing = Serial.read();
   //delay(250);
   //delay(100);
     
