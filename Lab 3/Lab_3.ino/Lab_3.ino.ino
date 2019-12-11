@@ -2,11 +2,32 @@
 #include "SPI.h"
 #include "Adafruit_GFX.h"
 #include "Adafruit_ILI9341.h"
+#include "TouchScreen.h"
 
 int CS = 10;
 int DC = 9;
 int RESET = 8;
 Adafruit_ILI9341 tft = Adafruit_ILI9341(CS, DC);
+
+// These are the four touchscreen analog pins
+int YP = A2;  // must be an analog pin, use "An" notation!
+int XM = A3;  // must be an analog pin, use "An" notation!
+int YM = 7;   // can be a digital pin
+int XP = 8;   // can be a digital pin
+
+// This is calibration data for the raw touch data to the screen coordinates
+int TS_MINX = 150;
+int TS_MINY = 120;
+int TS_MAXX = 920;
+int TS_MAXY = 940;
+
+int MINPRESSURE = 10;
+int MAXPRESSURE = 1000;
+
+// For better pressure precision, we need to know the resistance
+// between X+ and X- Use any multimeter to read it
+// For the one we're using, its 300 ohms across the X plate
+TouchScreen ts = TouchScreen(XP, YP, XM, YM, 300);
 
 int acPin = 2; 
 int heatPin = 3;
@@ -15,7 +36,7 @@ int heatPin = 3;
 struct Time{
   int hour; //hour
   int minute; //minute
-  float second; //seconds
+  double second; //seconds
 };
 
 enum Day {
@@ -36,7 +57,7 @@ enum PossibleLCDStates {
   setpointEdit,
   timedateEdit,
 };
-PossibleLCDStates LCDState = powersaving;
+PossibleLCDStates LCDState = main;
 
 /*HVAC Mode State*/
 enum PossibleHVACModes{
@@ -105,23 +126,30 @@ int currentTargetTemp = 0;
 int localTargetTemp = 0;
 int tempBuffer = 3;
 Time currentTime = {0,0,0};
-Date currentDate = {monday, 1, 1, 2019,true};
+Date currentDate = {monday, 1, 1, 2019, true};
 
-int loopStart = 0;
-int loopTime = 0;
+unsigned long loopStart = 0;
+unsigned long loopTime = 0;
+
+TSPoint point = ts.getPoint();
 
 void setup(){
-   Serial.begin(9600);
+   Serial.begin(2000000);
    pinMode(acPin, OUTPUT);
    pinMode(heatPin, OUTPUT);
 
    tft.begin();
-   tft.fillScreen(ILI9341_BLACK);
+   tft.fillScreen(ILI9341_WHITE);
+   Serial.println("Loop starting");
+   
 }
 
 void loop(){
-  int loopStart = micros();
+  loopStart = micros();
+  point = ts.getPoint();
+  //delay(1000);
   if(LCDState != off){
+    
     if(hold){
       adjustTemp(localTargetTemp);
     }
@@ -165,10 +193,30 @@ void loop(){
         else{adjustTemp(localTargetTemp);}
       }
     }
+    
   }
+  
+  /*Serial.print("Day: ");
+  Serial.print(dayToString(currentDate.weekday));
+  Serial.print(" Loop Time: ");
+  Serial.print(loopTime);
+  Serial.print(" Hour: ");
+  Serial.print(currentTime.hour);
+  Serial.print(" Minute: ");
+  Serial.print(currentTime.minute);
+  Serial.print(" Second: ");
+  Serial.println(currentTime.second);*/
+
+  
+  if(point.z > 0 && point.x > 100){
+    Serial.print("X = "); Serial.print(point.x);
+    Serial.print("\tY = "); Serial.print(point.y);
+    Serial.print("\tPressure = "); Serial.println(point.z);
+    delay(200);
+  }
+  redrawLCD();
   loopTime = micros() - loopStart;
   addTime(loopTime);
-  redrawLCD();
 }
 
 bool inSetpoint(Setpoint setpoint){
@@ -203,7 +251,7 @@ bool inSetpoint(Setpoint setpoint){
 //this will completely redraw lcd with
 void redrawLCD(){
   //read state draw state, start there then can get fancy with interrupt, maybe only update certain parts
-  if(LCDState = off){
+  if(LCDState == off){
     
   }
   else if(LCDState == powersaving){
@@ -222,7 +270,27 @@ void redrawLCD(){
 }
 
 void drawPowersaving(){}
-void drawMain(){}
+void drawMain(){
+  tft.drawRect(47,8,33,81, ILI9341_BLACK);
+  tft.drawRect(7,8,33, 117, ILI9341_BLACK);
+  tft.drawRect(95,8, 33,81, ILI9341_BLACK);
+  tft.drawRect(143, 8, 89, 81, ILI9341_BLACK);
+  tft.drawRect(143, 124, 89, 189, ILI9341_BLACK);
+  tft.drawRect(7, 132, 129, 181, ILI9341_BLACK);
+  tft.drawRect(199, 18, 25, 25, ILI9341_BLACK);
+  tft.drawRect(199, 54, 25, 25, ILI9341_BLACK);
+  tft.drawRect(191,136,33,33,ILI9341_BLACK);
+  tft.drawRect(191,180,33,33,ILI9341_BLACK);
+  tft.drawRect(191,224,33,33,ILI9341_BLACK);
+  tft.drawRect(191,268,33,33,ILI9341_BLACK);
+    
+
+
+
+
+
+
+}
 void drawSetpointEdit(){}
 void drawTimedateEdit(){}
 
@@ -232,8 +300,20 @@ void updateLCD(){
 }
 
 //add time, gonna have a huge chain for potential roll over
-void addTime(int millisToAdd){
-  
+void addTime(unsigned long microsToAdd){
+  currentTime.second += (double) microsToAdd/1000;
+  if(currentTime.second >= 60){
+    currentTime.second -= 60;
+    currentTime.minute += 1;
+    if(currentTime.minute >= 60){
+      currentTime.minute -= 60;
+      currentTime.hour += 1;
+      if(currentTime.hour >= 24){
+        currentTime.hour -= 24;
+        currentDate.weekday = nextDay(currentDate.weekday);
+      }
+    }
+  }
 }
 
 String dayToString(Day d){
@@ -248,11 +328,23 @@ String dayToString(Day d){
   }
 }
 
+Day nextDay(Day d){
+  switch(d){
+    case monday: return tuesday;
+    case tuesday: return wednesday;
+    case wednesday: return thursday;
+    case thursday: return friday;
+    case friday: return saturday;
+    case saturday: return sunday;
+    case sunday: return monday;
+  }
+}
+
 void adjustTemp(int targetTemp){
   if(targetTemp > currentTemp + tempBuffer && (HVACMode == heat or HVACMode == automatic)){
     HVACStatus = heatOn;
     digitalWrite(heatPin, HIGH);
-    digitalWrite(acPin, LOW);  
+    digitalWrite(acPin, LOW);
   }
   else if(targetTemp < currentTemp - tempBuffer && (HVACMode == cool or HVACMode == automatic)){
     HVACStatus = coolOn;
