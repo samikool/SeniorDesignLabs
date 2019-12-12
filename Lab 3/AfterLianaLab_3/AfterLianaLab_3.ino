@@ -270,6 +270,7 @@ void redrawLCD(){
 }
 
 void drawPowersaving(){}
+
 void drawMain(){
   tft.drawRect(47,8,33,81, ILI9341_BLACK);
   tft.drawRect(7,8,33, 117, ILI9341_BLACK);
@@ -283,16 +284,43 @@ void drawMain(){
   tft.drawRect(191,180,33,33,ILI9341_BLACK);
   tft.drawRect(191,224,33,33,ILI9341_BLACK);
   tft.drawRect(191,268,33,33,ILI9341_BLACK);
+  }
     
-
-
-
-
-
-
+void drawSetpointEdit(){
+  tft.drawRect(47, 15, 193, 289, ILI9341_BLACK); 
+  tft.drawRect(7, 264, 33, 33, ILI9341_BLACK);
+  tft.drawRect(7, 79, 25, 71, ILI9341_BLACK);
+  tft.drawRect(7, 170, 25, 71, ILI9341_BLACK);
+  tft.drawRect(215, 27, 17, 17, ILI9341_BLACK);
+  tft.drawRect(215, 59, 17, 17, ILI9341_BLACK);
+  tft.drawRect(215, 99, 17, 17, ILI9341_BLACK);
+  tft.drawRect(215, 131, 17, 17, ILI9341_BLACK);
+  tft.drawRect(215, 171, 17, 17, ILI9341_BLACK);
+  tft.drawRect(215, 203, 17, 17, ILI9341_BLACK);
+  tft.drawRect(215, 243, 17, 17, ILI9341_BLACK);
+  tft.drawRect(215, 275, 17, 17, ILI9341_BLACK);
+  //Horizontal Lines
+  tft.drawLine(63, 15, 63, 303, ILI9341_BLACK);
+  tft.drawLine(99, 15, 99, 303, ILI9341_BLACK);
+  tft.drawLine(135, 15, 135, 303, ILI9341_BLACK);
+  tft.drawLine(171, 15, 171, 303, ILI9341_BLACK);
+  tft.drawLine(207, 15, 207, 303, ILI9341_BLACK); 
+  //Vertical Lines
+  tft.drawLine(47, 231, 240, 231, ILI9341_BLACK);
+  tft.drawLine(47, 160, 240, 160, ILI9341_BLACK);
+  tft.drawLine(47, 88, 240, 88, ILI9341_BLACK);
 }
-void drawSetpointEdit(){}
-void drawTimedateEdit(){}
+
+
+void drawTimedateEdit(){
+  tft.drawRect(7, 264, 33, 33, ILI9341_BLACK);
+  tft.drawRect(39, 79, 25, 161, ILI9341_BLACK);
+  tft.drawRect(71, 79, 25, 161, ILI9341_BLACK);
+  tft.drawRect(103, 79, 25, 161, ILI9341_BLACK);
+  tft.drawRect(135, 79, 25, 161, ILI9341_BLACK);
+  tft.drawRect(167, 79, 25, 161, ILI9341_BLACK);
+  tft.drawRect(199, 79, 25, 161, ILI9341_BLACK);
+}
 
 //use this one with small part of screen, possible speed improvement
 void updateLCD(){
