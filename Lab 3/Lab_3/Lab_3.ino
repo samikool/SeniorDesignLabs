@@ -55,10 +55,10 @@ enum PossibleLCDStates {
   off,
   powersaving,
   main,
-  setpointEdit,
+  setpointDisplay,
   timedateEdit,
 };
-PossibleLCDStates LCDState = timedateEdit;
+PossibleLCDStates LCDState = main;
 
 /*HVAC Mode State*/
 enum PossibleHVACModes{
@@ -67,7 +67,8 @@ enum PossibleHVACModes{
   heat,
   automatic
 };
-PossibleHVACModes HVACMode = none;
+PossibleHVACModes HVACMode = cool;
+PossibleHVACModes lastHVACMode = none;
 
 /*HVAC Power State*/
 enum PossibleHVACStatus{
@@ -76,6 +77,7 @@ enum PossibleHVACStatus{
   nothingOn
 };
 PossibleHVACStatus HVACStatus = nothingOn;
+PossibleHVACStatus lastHVACStatus = nothingOn;
 
 /*Date Struct*/
 struct Date{
@@ -119,15 +121,16 @@ SetpointList setpointList = {{70,{0,0,0},{6,0,0},none,true,false},
   {70,{18,0,0,false},{0,0,0,true},none,false,false}};
 
 //Hold
-bool hold = false;
+bool hold = true;
 
 /*General Data*/
 int currentTemp = 70;
 int currentTargetTemp = 0;
-int localTargetTemp = 72;
+int localTargetTemp = 60;
+PossibleHVACModes localTargetHVACMode = cool;
 int tempBuffer = 3;
 Time currentTime = {23,59,55,false};
-Date currentDate = {monday, 1, 1, 2019, true};
+Date currentDate = {thursday, 12, 12, 2019, true};
 
 unsigned long loopStart = 0;
 unsigned long loopTime = 0;
@@ -137,8 +140,13 @@ bool updateSecond = true;
 bool updateMinute = true;
 bool updateHour = true;
 bool updateWeekday = true;
+bool updateDay= true;
+bool updateMonth = true;
+bool updateYear = true;
 bool updateHold = true;
 bool updateSetpoint = true;
+bool updateHVACStatus = true;
+bool updateHVACMode = true;
 int previousSecond = currentTime.second;
 
 /*Bools for determining what part of date and time is selected on timedateEdit screen*/
@@ -169,42 +177,43 @@ void loop(){
     
     if(hold){
       adjustTemp(localTargetTemp);
+      adjustHVACMode(localTargetHVACMode);
     }
     else{
       if(currentDate.isWeekday){
         if(setpointList.weekdayOne.isActive && inSetpoint(setpointList.weekdayOne)){
-          HVACMode = setpointList.weekdayOne.HVACMode;
+          adjustHVACMode(setpointList.weekdayOne.HVACMode);
           adjustTemp(setpointList.weekdayOne.temp);
         }
         else if(setpointList.weekdayTwo.isActive && inSetpoint(setpointList.weekdayTwo)){
-          HVACMode = setpointList.weekdayTwo.HVACMode;
+          adjustHVACMode(setpointList.weekdayTwo.HVACMode);
           adjustTemp(setpointList.weekdayTwo.temp);
         }
         else if(setpointList.weekdayThree.isActive && inSetpoint(setpointList.weekdayThree)){
-          HVACMode = setpointList.weekdayThree.HVACMode;
+          adjustHVACMode(setpointList.weekdayThree.HVACMode);
           adjustTemp(setpointList.weekdayThree.temp);
         }
         else if(setpointList.weekdayFour.isActive && inSetpoint(setpointList.weekdayFour)){
-          HVACMode = setpointList.weekdayFour.HVACMode;
+          adjustHVACMode(setpointList.weekdayFour.HVACMode);
           adjustTemp(setpointList.weekdayFour.temp);
         }
         else{adjustTemp(localTargetTemp);}
       }
       else{
         if(setpointList.weekendOne.isActive && inSetpoint(setpointList.weekendOne)){
-          HVACMode = setpointList.weekendOne.HVACMode;
+          adjustHVACMode(setpointList.weekendOne.HVACMode);
           adjustTemp(setpointList.weekendOne.temp);
         }
         else if(setpointList.weekendTwo.isActive && inSetpoint(setpointList.weekendTwo)){
-          HVACMode = setpointList.weekendTwo.HVACMode;
+          adjustHVACMode(setpointList.weekendTwo.HVACMode);
           adjustTemp(setpointList.weekendTwo.temp);
         }
         else if(setpointList.weekendThree.isActive && inSetpoint(setpointList.weekendThree)){
-          HVACMode = setpointList.weekendThree.HVACMode;
+          adjustHVACMode(setpointList.weekendThree.HVACMode);
           adjustTemp(setpointList.weekendThree.temp);
         }
         else if(setpointList.weekendFour.isActive && inSetpoint(setpointList.weekendFour)){
-          HVACMode = setpointList.weekendFour.HVACMode;
+          adjustHVACMode(setpointList.weekendFour.HVACMode);
           adjustTemp(setpointList.weekendFour.temp);
         }
         else{adjustTemp(localTargetTemp);}
@@ -225,7 +234,7 @@ void loop(){
   Serial.println(currentTime.second);*/
 
   
-    if(p.z > 0 && p.x > 100){
+    if(p.z > 0 && p.z < 1000 && p.x > 100){
         Serial.print("X = "); Serial.print(p.x);
         Serial.print("\tY = "); Serial.print(p.y);
         Serial.print("\tPressure = "); Serial.println(p.z);
@@ -240,7 +249,7 @@ void loop(){
             }
             //go to setpointEdit
             else if( 400 < p.x && p.x < 530 && 125 < p.y && p.y < 310){
-                LCDState = setpointEdit;
+                LCDState = setpointDisplay;
                 clearLCD();
                 Serial.println("Moving to setpointEdit");
                 updateHold = true;
@@ -250,6 +259,7 @@ void loop(){
             else if(265 < p.x && p.x < 370 &&  130 < p.y && p.y < 315){
                 if(hold == false){hold = true;}
                 else{hold = false;}
+                updateHold = true;
                 Serial.println("Hold toggeled");
             }
             //plus button
@@ -266,10 +276,24 @@ void loop(){
                     localTargetTemp -= 1;
                     updateSetpoint = true;
                 }   
-            } 
+            }
+
+            //nextMode button
+            else if(735 < p.x && p.x < 805 && 390 < p.y && p.y < 450){
+                localTargetHVACMode = nextMode(localTargetHVACMode);
+                updateHVACMode = true;
+            }
+            //previousMode button
+            else if(750 < p.x && p.x < 805 && 570 < p.y && p.y < 625){
+                for(int i=0; i<3; i++){
+                    localTargetHVACMode = nextMode(localTargetHVACMode);
+                }
+                updateHVACMode = true;
+            }
+            
         }
         
-        else if(LCDState == setpointEdit){
+        else if(LCDState == setpointDisplay){
           //Back button
             if(120 < p.x && p.x < 240 && 660 < p.y && p.y < 900){
                 LCDState = main;
@@ -295,6 +319,7 @@ void loop(){
                 yearSelected = false;
                 Serial.println("Minute selected");
             } 
+            //select hour
             else if(360 < p.x && p.x < 420 && 267 < p.y && p.y < 670){
                 minuteSelected = false;
                 hourSelected = true;
@@ -304,6 +329,47 @@ void loop(){
                 yearSelected = false;
                 Serial.println("Hour selected");
             }
+            //select Weekday
+            else if(460 < p.x && p.x < 530 && 267 < p.y && p.y < 670){
+                minuteSelected = false;
+                hourSelected = false;
+                weekdaySelected = true;
+                daySelected = false;
+                monthSelected = false;
+                yearSelected = false;
+                Serial.println("Weekday selected");
+            }
+            //select Month
+            else if(555 < p.x && p.x < 635 && 267 < p.y && p.y < 670){
+                minuteSelected = false;
+                hourSelected = false;
+                weekdaySelected = false;
+                daySelected = false;
+                monthSelected = true;
+                yearSelected = false;
+                Serial.println("Month selected");
+            }
+            //select Day
+            else if(655 < p.x && p.x < 745 && 267 < p.y && p.y < 670){
+                minuteSelected = false;
+                hourSelected = false;
+                weekdaySelected = false;
+                daySelected = true;
+                monthSelected = false;
+                yearSelected = false;
+                Serial.println("Day selected");
+            }
+            //select Year
+            else if(760 < p.x && p.x < 840 && 267 < p.y && p.y < 670){
+                minuteSelected = false;
+                hourSelected = false;
+                weekdaySelected = false;
+                daySelected = false;
+                monthSelected = false;
+                yearSelected = true;
+                Serial.println("Year selected");
+            }
+            
             
             //plus button
             else if(430 < p.x && p.x < 530 && 130 < p.y && p.y < 210){
@@ -313,6 +379,7 @@ void loop(){
                         currentTime.minute = 0;
                     }
                     updateMinute = true;
+                    currentTime.second = 0;
                 }
                 else if(hourSelected){
                     currentTime.hour += 1;
@@ -326,6 +393,51 @@ void loop(){
                     }
                     updateHour = true;
                 }
+
+                else if(weekdaySelected){
+                    currentDate.weekday = nextDay(currentDate.weekday);
+                    updateWeekday = true;
+                }
+
+                else if(monthSelected){
+                    currentDate.month += 1;
+                    if(currentDate.month == 13){
+                        currentDate.month = 1;              
+                    }
+                    
+                    if((currentDate.month % 2 == 0 && currentDate.month != 2) && currentDate.day > 30){
+                        currentDate.day = 30;
+                        updateDay = true;
+                    }
+                    else if(currentDate.month == 2 && currentDate.day > 28){
+                        currentDate.day = 28;
+                        updateDay = true;
+                    }  
+                    
+                    updateMonth = true;
+                }
+
+                else if(daySelected){
+                    currentDate.day += 1;
+                    if((currentDate.month % 2 == 1 || currentDate.month == 7) && currentDate.day == 32){
+                        currentDate.day = 1;
+                    }
+                    else if((currentDate.month % 2 == 0 && currentDate.month != 2) && currentDate.day == 31){
+                        currentDate.day = 1;
+                    }
+                    else if(currentDate.month == 2 && currentDate.day == 29){
+                        currentDate.day = 1;
+                    }
+                    updateDay = true;
+                }
+
+                else if(yearSelected){
+                    currentDate.year += 1;
+                    if(currentDate.year == 9999){
+                        currentDate.year = 1000;
+                    }
+                    updateYear = true;                
+                }      
             }
             //minus button
             else if(415 < p.x && p.x < 550 && 750 < p.y && p.y < 810){
@@ -335,6 +447,7 @@ void loop(){
                         currentTime.minute = 59;
                     }
                     updateMinute = true;
+                    currentTime.second = 0;
                 }
                 else if(hourSelected){
                     currentTime.hour -= 1;
@@ -348,8 +461,51 @@ void loop(){
                     }
                     updateHour = true;
                 }
+                else if(weekdaySelected){
+                    for(int i=0; i <6; i++){
+                        currentDate.weekday = nextDay(currentDate.weekday);
+                    }
+                    updateWeekday = true;
+                }
+                else if(monthSelected){
+                    currentDate.month -= 1;
+                    if(currentDate.month == 0){
+                        currentDate.month = 12;                      
+                    }
+                    
+                    if((currentDate.month % 2 == 0 && currentDate.month != 2) && currentDate.day > 30){
+                        currentDate.day = 30;
+                        updateDay = true;
+                    }
+                    else if(currentDate.month == 2 && currentDate.day > 28){
+                        currentDate.day = 28;
+                        updateDay = true;
+                    }  
+                    
+                    updateMonth = true;
+                }
+                 else if(daySelected){
+                    currentDate.day -= 1;
+                    if((currentDate.month % 2 == 1 || currentDate.month == 7) && currentDate.day == 0){
+                        currentDate.day = 31;
+                    }
+                    else if((currentDate.month % 2 == 0 && currentDate.month != 2) && currentDate.day == 0){
+                        currentDate.day = 30;
+                    }
+                    else if(currentDate.month == 2 && currentDate.day == 0){
+                        currentDate.day = 28;
+                    }
+                    updateDay = true;
+                }
+
+                else if(yearSelected){
+                    currentDate.year -= 1;
+                    if(currentDate.year == 1000){
+                        currentDate.year = 9999;
+                    }
+                    updateYear = true; 
+                }
             }
-            
         }
         delay(200);
     }
@@ -403,8 +559,8 @@ void redrawLCD(){
     else if(LCDState == main){
         drawMain();
     }
-    else if(LCDState == setpointEdit){
-        drawSetpointEdit();
+    else if(LCDState == setpointDisplay){
+        drawSetpointDisplay();
     }
     else if(LCDState == timedateEdit){
         drawTimedateEdit();
@@ -423,18 +579,82 @@ void drawBackButton(){
 
 void drawMain(){
     /*Draw Boxes*/
+    //program settings box
     tft.drawRect(47,8,33,81, ILI9341_BLACK);
+    //time box
     tft.drawRect(7,8,33, 117, ILI9341_BLACK);
+    //hold box
     tft.drawRect(95,8, 33,81, ILI9341_BLACK);
     tft.drawRect(143, 8, 89, 81, ILI9341_BLACK);
-    tft.drawRect(143, 124, 89, 189, ILI9341_BLACK);
+
+    //HVAC Box
+    tft.drawRect(143, 120, 89, 193, ILI9341_BLACK);
+    //temp box
     tft.drawRect(7, 132, 129, 181, ILI9341_BLACK);
-    tft.drawRect(199, 18, 25, 25, ILI9341_BLACK);
-    tft.drawRect(199, 54, 25, 25, ILI9341_BLACK);
-    tft.drawRect(191,136,33,33,ILI9341_BLACK);
-    tft.drawRect(191,180,33,33,ILI9341_BLACK);
-    tft.drawRect(191,224,33,33,ILI9341_BLACK);
-    tft.drawRect(191,268,33,33,ILI9341_BLACK);
+    //setpoint +-
+    tft.drawRect(199,18,25,25,ILI9341_BLACK);
+    tft.drawRect(199,54,25,25,ILI9341_BLACK);
+
+    //drawStatus
+    if(updateHVACStatus){
+        tft.fillRect(155, 120, 25, 90, ILI9341_WHITE);
+        updateHVACStatus = false;
+    }
+    
+    tft.setRotation(3);
+    tft.setCursor(15, 160);
+    tft.setTextSize(2);
+    tft.print("Status: ");
+    if(HVACStatus == nothingOn){
+        tft.setTextColor(ILI9341_BLACK);
+        tft.print("off");
+    }
+    else if(HVACStatus == coolOn){
+        tft.setTextColor(ILI9341_BLUE);
+        tft.print("Cooling");
+    }
+    else if(HVACStatus == heatOn){
+        tft.setTextColor(ILI9341_RED);
+        tft.print("Heating");
+    }
+    tft.setRotation(0);
+
+    
+    //draw mode
+    if(updateHVACMode){
+        tft.fillRect(190, 148, 25, 55, ILI9341_WHITE);
+        updateHVACMode = false;
+    }
+      
+    tft.setRotation(3);
+    tft.setCursor(15, 195);
+    tft.setTextSize(2);
+    tft.setTextColor(ILI9341_BLACK);
+    tft.print("Mode:    ");
+    if(HVACMode == none){
+        tft.setTextColor(ILI9341_LIGHTGREY);
+        tft.print("off");
+    }
+    else if(HVACMode == cool){
+        tft.setTextColor(ILI9341_BLUE);
+        tft.print("Cool");
+        
+    }
+    else if(HVACMode == heat){
+        tft.setTextColor(ILI9341_RED);
+        tft.print("Heat");
+    }
+    else if(HVACMode == automatic){
+        tft.setTextColor(ILI9341_BLACK);
+        tft.print("Auto");
+    }
+    tft.setRotation(0);
+    
+    //forward mode button
+    tft.fillTriangle(202, 218, 195, 204, 209, 204, ILI9341_BLACK);
+
+    //back button mode
+    tft.fillTriangle(202, 132, 195, 146, 209, 146, ILI9341_BLACK);
 
     /*Draw Current Temp*/
     tft.setRotation(3);
@@ -452,6 +672,12 @@ void drawMain(){
     /*Draw Hold*/
     if(updateHold){
         tft.setCursor(250,55);
+        if(hold){
+            tft.fillRect(47,8,33,81, ILI9341_GREEN);
+        }
+        else{
+            tft.fillRect(47,8,33,81, ILI9341_LIGHTGREY);
+        }
         tft.setRotation(3);
         tft.setTextSize(2);
         tft.println("Hold");
@@ -495,19 +721,19 @@ void drawMain(){
     
 }
     
-void drawSetpointEdit(){
+void drawSetpointDisplay(){
     tft.drawRect(47, 15, 193, 289, ILI9341_BLACK); 
     tft.drawRect(7, 264, 33, 33, ILI9341_BLACK);
     tft.drawRect(7, 79, 25, 71, ILI9341_BLACK);
     tft.drawRect(7, 170, 25, 71, ILI9341_BLACK);
     tft.drawRect(215, 27, 17, 17, ILI9341_BLACK);
     tft.drawRect(215, 59, 17, 17, ILI9341_BLACK);
-    tft.drawRect(215, 99, 17, 17, ILI9341_BLACK);
-    tft.drawRect(215, 131, 17, 17, ILI9341_BLACK);
-    tft.drawRect(215, 171, 17, 17, ILI9341_BLACK);
-    tft.drawRect(215, 203, 17, 17, ILI9341_BLACK);
-    tft.drawRect(215, 243, 17, 17, ILI9341_BLACK);
-    tft.drawRect(215, 275, 17, 17, ILI9341_BLACK);
+   // tft.drawRect(215, 99, 17, 17, ILI9341_BLACK);
+   // tft.drawRect(215, 131, 17, 17, ILI9341_BLACK);
+   // tft.drawRect(215, 171, 17, 17, ILI9341_BLACK);
+   // tft.drawRect(215, 203, 17, 17, ILI9341_BLACK);
+   // tft.drawRect(215, 243, 17, 17, ILI9341_BLACK);
+   // tft.drawRect(215, 275, 17, 17, ILI9341_BLACK);
     //Horizontal Lines
     tft.drawLine(63, 15, 63, 303, ILI9341_BLACK);
     tft.drawLine(99, 15, 99, 303, ILI9341_BLACK);
@@ -520,6 +746,71 @@ void drawSetpointEdit(){
     tft.drawLine(47, 88, 240, 88, ILI9341_BLACK);
 
     drawBackButton();
+
+
+    //Draw Weekday/weekend button
+    tft.setCursor(90,20);
+    tft.setTextColor(ILI9341_BLACK); 
+    tft.setRotation(3);
+    tft.setTextSize(2);
+    tft.print("Weekday");
+    tft.setRotation(0);  
+
+    tft.setCursor(200 ,20);
+    tft.setTextColor(ILI9341_BLACK); 
+    tft.setRotation(3);
+    tft.setTextSize(2);
+    tft.print("Weekend");
+    tft.setRotation(0);  
+
+
+    //Draw headers
+    tft.setCursor(40,52);
+    tft.setTextColor(ILI9341_BLACK); 
+    tft.setRotation(3);
+    tft.setTextSize(1);
+    tft.print("Hour");
+    tft.setRotation(0); 
+
+    tft.setCursor(105,52);
+    tft.setTextColor(ILI9341_BLACK); 
+    tft.setRotation(3);
+    tft.setTextSize(1);
+    tft.print("Minute");
+    tft.setRotation(0); 
+
+    tft.setCursor(185,52);
+    tft.setTextColor(ILI9341_BLACK); 
+    tft.setRotation(3);
+    tft.setTextSize(1);
+    tft.print("Temp.");
+    tft.setRotation(0); 
+
+    tft.setCursor(257,52);
+    tft.setTextColor(ILI9341_BLACK); 
+    tft.setRotation(3);
+    tft.setTextSize(1);
+    tft.print("Mode");
+    tft.setRotation(0);
+
+    //Draw hour buttons 2251
+    tft.fillRect(216,249,16,4, ILI9341_BLACK); //verticle
+    tft.fillRect(222,243,4,16, ILI9341_BLACK); //horizontal
+        /*Minue*/
+    tft.fillRect(222,275,4,16, ILI9341_BLACK); //horizontal
+
+    //Draw min buttons
+    tft.fillRect(216,178,16,4, ILI9341_BLACK); //verticle
+    tft.fillRect(222,172,4,16, ILI9341_BLACK); //horizontal
+    tft.fillRect(222,203,4,16, ILI9341_BLACK); //horizontal
+
+
+    //Draw Temp buttons
+    tft.fillRect(216,105,16,4, ILI9341_BLACK); //verticle
+    tft.fillRect(222,99, 4,16, ILI9341_BLACK); //horizontal
+    tft.fillRect(222,131,4,16, ILI9341_BLACK); //horizontal
+
+    //Draw Mode buttons
 }
 
 
@@ -622,8 +913,77 @@ void drawTimedateEdit(){
         tft.print("Weekday: ");
         tft.print(dayToString(currentDate.weekday));
     }
-    
     tft.setRotation(0);
+
+    /*Draw Month*/
+    if(updateMonth){
+        tft.fillRect(138, 94, 20, 50, ILI9341_WHITE);
+        updateMonth = false;
+    }
+
+    
+    tft.setCursor(95,140);
+    tft.setRotation(3);
+    tft.setTextSize(2);
+    if(monthSelected){
+        tft.setTextColor(ILI9341_BLACK);
+        tft.print("Month: ");
+        tft.print(monthToString(currentDate.month));
+    }else{
+        tft.setTextColor(ILI9341_LIGHTGREY);
+        tft.print("Month: ");
+        tft.print(monthToString(currentDate.month));
+    }
+    tft.setRotation(0);
+
+    /*Draw Day*/
+    if(updateDay){
+        tft.fillRect(170, 113, 20, 30, ILI9341_WHITE);
+        updateDay = false;
+    }
+    
+    tft.setCursor(123,173);
+    tft.setRotation(3);
+    tft.setTextSize(2);
+    if(daySelected){
+        tft.setTextColor(ILI9341_BLACK);
+        tft.print("Day: ");
+        if(currentDate.day / 10 < 1){
+            tft.print("0");
+        }
+        tft.print(currentDate.day);
+    }else{
+        tft.setTextColor(ILI9341_LIGHTGREY);
+        tft.print("Day: ");
+        if(currentDate.day / 10 < 1){
+            tft.print("0");
+        }
+        tft.print(currentDate.day);
+    }
+    tft.setRotation(0);
+    
+
+    /*Draw Year*/
+    if(updateYear){
+        tft.fillRect(202, 95, 20, 60, ILI9341_WHITE);
+        updateYear = false;
+    }
+    
+    tft.setCursor(100,205);
+    tft.setRotation(3);
+    tft.setTextSize(2);
+    if(yearSelected){
+        tft.setTextColor(ILI9341_BLACK);
+        tft.print("Year: ");
+        tft.print(currentDate.year);
+    }else{
+        tft.setTextColor(ILI9341_LIGHTGREY);
+        tft.print("Year: ");
+        tft.print(currentDate.year);
+    }
+    tft.setRotation(0);
+    
+    
     drawBackButton();
 }
 
@@ -737,6 +1097,31 @@ void addTime(unsigned long microsToAdd){
                 updateWeekday = true;
 
                 currentDate.day += 1;
+                updateDay = true;
+                
+                if((currentDate.month % 2 == 1 || currentDate.month == 7) && currentDate.day == 32){
+                    currentDate.month += 1;
+                    currentDate.day = 1;
+                    updateMonth = true;
+                }
+                else if((currentDate.month % 2 == 0 && currentDate.month != 2) && currentDate.day == 31){
+                    currentDate.month += 1;
+                    currentDate.day = 1;
+                    updateMonth = true;
+                }
+                else if(currentDate.month == 2 && currentDate.day == 29){
+                    currentDate.month += 1;
+                    currentDate.day = 1;
+                    updateMonth = true;
+                }
+
+                if(updateMonth){
+                    if(currentDate.month == 13){
+                        currentDate.month = 1;
+                        currentDate.year += 1;
+                        updateYear = true;
+                    }
+                }
             }
         }
     }
@@ -747,7 +1132,7 @@ String dayToString(Day d){
         case monday: return "Mon";
         case tuesday: return "Tue";
         case wednesday: return "Wed";
-        case thursday: return "Thur";
+        case thursday: return "Thu";
         case friday: return "Fri";
         case saturday: return "Sat";
         case sunday: return "Sun";
@@ -783,20 +1168,69 @@ Day nextDay(Day d){
     }
 }
 
+PossibleHVACModes nextMode(PossibleHVACModes mode){
+    switch(mode){
+        case none: return cool;
+        case cool: return heat;
+        case heat: return automatic;
+        case automatic: return none;  
+    }
+}
+
 void adjustTemp(int targetTemp){
     if(targetTemp > currentTemp + tempBuffer && (HVACMode == heat or HVACMode == automatic)){
         HVACStatus = heatOn;
+        if(lastHVACStatus != heatOn){
+            updateHVACStatus = true;
+        }   
         digitalWrite(heatPin, HIGH);
         digitalWrite(acPin, LOW);
     }
     else if(targetTemp < currentTemp - tempBuffer && (HVACMode == cool or HVACMode == automatic)){
         HVACStatus = coolOn;
+        if(lastHVACStatus != coolOn){
+            updateHVACStatus = true;
+        }   
         digitalWrite(acPin, HIGH);
         digitalWrite(heatPin, LOW);
     }
     else{
         HVACStatus = nothingOn;
+        if(lastHVACStatus != nothingOn){
+            updateHVACStatus = true;
+        }   
         digitalWrite(heatPin, LOW);
         digitalWrite(acPin, LOW);  
     }
+    lastHVACStatus = HVACStatus;
+}
+
+void adjustHVACMode(PossibleHVACModes targetMode){
+    if(targetMode == none){
+        HVACMode = none;
+        if(lastHVACMode != none){
+            updateHVACMode = true;
+        }
+    }
+
+    else if(targetMode == heat){
+        HVACMode = targetMode;
+        if(lastHVACMode != heat){
+            updateHVACMode = true;
+        }
+    }
+
+    else if(targetMode == cool){
+        HVACMode = cool;
+        if(lastHVACMode != cool){
+            updateHVACMode = true;  
+        }  
+    }
+    else if(targetMode = automatic){
+        HVACMode = automatic;
+        if(lastHVACMode != automatic){
+            updateHVACMode = true;  
+        }
+    }
+    lastHVACMode = HVACMode;
 }
