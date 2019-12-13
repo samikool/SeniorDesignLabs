@@ -56,9 +56,10 @@ enum PossibleLCDStates {
   powersaving,
   main,
   setpointDisplay,
+  setpointEdit,
   timedateEdit,
 };
-PossibleLCDStates LCDState = main;
+PossibleLCDStates LCDState = setpointEdit;
 
 /*HVAC Mode State*/
 enum PossibleHVACModes{
@@ -95,6 +96,7 @@ struct Setpoint{
   Time stopTime; //stop time of setpoint
   PossibleHVACModes HVACMode; //HVACMode
   bool isWeekday;
+  bool enabled;
   bool isActive;
 };
 
@@ -111,14 +113,14 @@ struct SetpointList{
   Setpoint weekendFour;
 };
 
-SetpointList setpointList = {{70,{0,0,0},{6,0,0},none,true,false}, 
-  {70,{6,0,0,true},{12,0,0,false},none,true,false}, 
-  {70,{12,0,0,false},{18,0,0,false},none,true,false}, 
-  {70,{18,0,0,false},{0,0,0,true},none,true,false}, 
-  {70,{0,0,0,true},{6,0,0,true},none,false,false}, 
-  {70,{6,0,0,true},{12,0,0,false},none,false,false}, 
-  {70,{12,0,0,false},{18,0,0,false},none,false,false}, 
-  {70,{18,0,0,false},{0,0,0,true},none,false,false}};
+SetpointList setpointList = {{70,{0,0,0,true},{6,0,0,true},none,true,false,false}, 
+  {70,{6,0,0,true},{12,0,0,false},none,true,false,false}, 
+  {70,{12,0,0,false},{18,0,0,false},none,true,false,false}, 
+  {70,{18,0,0,false},{0,0,0,true},none,true,false,false}, 
+  {70,{0,0,0,true},{6,0,0,true},none,false,false,false}, 
+  {70,{6,0,0,true},{12,0,0,false},none,false,false,false}, 
+  {70,{12,0,0,false},{18,0,0,false},none,false,false,false}, 
+  {70,{18,0,0,false},{0,0,0,true},none,false,false,false}};
 
 //Hold
 bool hold = true;
@@ -148,6 +150,22 @@ bool updateSetpoint = true;
 bool updateHVACStatus = true;
 bool updateHVACMode = true;
 int previousSecond = currentTime.second;
+
+/*Bools for set edit screen*/
+bool updateSetStart = true;
+bool updateSetMinute = true;
+bool updateSetHour = true;
+bool updateSetTemp = true;
+bool updateSetMode = true;
+bool updateSetEnable = true;
+
+bool setStartWanted = true;
+bool setStartSelected = false;
+bool setMinuteSelected = true;
+bool setHourSelected = false;
+bool setModeSelected = false;
+bool setEnableSelected = false;
+bool setTempSelected = false;
 
 /*Bools for determining what part of date and time is selected on timedateEdit screen*/
 bool minuteSelected = true;
@@ -284,7 +302,7 @@ void loop(){
                 updateHVACMode = true;
             }
             //previousMode button
-            else if(750 < p.x && p.x < 805 && 570 < p.y && p.y < 625){
+            else if(700 < p.x && p.x < 805 && 570 < p.y && p.y < 680){
                 for(int i=0; i<3; i++){
                     localTargetHVACMode = nextMode(localTargetHVACMode);
                 }
@@ -565,11 +583,16 @@ void redrawLCD(){
     else if(LCDState == timedateEdit){
         drawTimedateEdit();
     }
+
+    else if(LCDState == setpointEdit){
+        drawSetpointEdit(setpointList.weekdayOne);
+    }
 }
 
 void drawPowersaving(){}
 
 void drawBackButton(){
+    tft.drawRect(7, 264, 33, 33, ILI9341_BLACK);
     tft.fillTriangle(
       22,291,
       12,271,
@@ -597,7 +620,7 @@ void drawMain(){
 
     //drawStatus
     if(updateHVACStatus){
-        tft.fillRect(155, 120, 25, 90, ILI9341_WHITE);
+        tft.fillRect(155, 125, 25, 90, ILI9341_WHITE);
         updateHVACStatus = false;
     }
     
@@ -632,7 +655,7 @@ void drawMain(){
     tft.setTextColor(ILI9341_BLACK);
     tft.print("Mode:    ");
     if(HVACMode == none){
-        tft.setTextColor(ILI9341_LIGHTGREY);
+        tft.setTextColor(ILI9341_DARKGREY);
         tft.print("off");
     }
     else if(HVACMode == cool){
@@ -720,10 +743,210 @@ void drawMain(){
 
     
 }
+
+void drawSetpointEdit(Setpoint setpoint){
+    tft.drawRect(39, 79, 25, 161, ILI9341_BLACK);
+    tft.drawRect(71, 79, 25, 161, ILI9341_BLACK);
+    tft.drawRect(103, 79, 25, 161, ILI9341_BLACK);
+    tft.drawRect(135, 79, 25, 161, ILI9341_BLACK);
+    tft.drawRect(167, 79, 25, 161, ILI9341_BLACK);
+    tft.drawRect(199, 79, 25, 161, ILI9341_BLACK);
+    drawBackButton();
+
+    /*Draw Plus Box*/
+    tft.drawRect(100, 20, 40, 40, ILI9341_BLACK);
+    //horizontal
+    tft.fillRect(117, 24, 5, 32, ILI9341_RED);
+    //verticle
+    tft.fillRect(104, 38, 32, 5, ILI9341_RED);
+
+    /*Draw Minus Box*/
+    tft.drawRect(100, 260, 40, 40, ILI9341_BLACK);
+    //horizontal
+    tft.fillRect(117, 264, 5, 32, ILI9341_BLUE);
+
+    /*Draw start/stop*/
+    if(updateSetStart){
+        tft.fillRect( 42, 95, 20, 130, ILI9341_GREEN);
+        updateSetStart = true;  
+    }
+    
+    
+    tft.setRotation(3);
+    tft.setTextSize(2);
+
+    if(setStartSelected){
+        tft.setTextColor(ILI9341_BLACK);
+        if(setStartWanted){
+            tft.setCursor(100,45);
+            tft.print("Start Time");
+        }else{
+            tft.setCursor(107,45);
+            tft.print("Stop Time");
+        }
+    }else{
+        tft.setTextColor(ILI9341_LIGHTGREY);
+        if(setStartWanted){
+            tft.setCursor(100,45);
+            tft.print("Start Time");
+        }else{
+            tft.setCursor(107,45);
+            tft.print("Stop Time");
+        }
+    }
+    tft.setRotation(0);
+    
+    
+    /*Draw minute Option*/
+    if(updateSetMinute){
+        tft.fillRect( 73, 100, 20, 25, ILI9341_GREEN);
+        updateSetMinute = true;  
+    }
+    
+    tft.setCursor(100,76);
+    tft.setRotation(3);
+    tft.setTextSize(2);
+    if(minuteSelected){
+        tft.setTextColor(ILI9341_BLACK);
+        tft.print("Minute: ");
+        if(setpoint.startTime.minute / 10 < 1){
+            tft.print("0");
+        }
+        tft.print(setpoint.startTime.minute);
+    }else{
+        tft.setTextColor(ILI9341_LIGHTGREY);
+        tft.print("Minute: ");
+        if(setpoint.startTime.minute / 10 < 1){
+            tft.print("0");
+        }
+        tft.print(setpoint.startTime.minute);
+    }
+    tft.setRotation(0);
+
+    /*Draw hour Option*/
+    if(updateSetHour){
+        tft.fillRect( 104, 85, 20, 65, ILI9341_GREEN);
+        updateSetHour = true;  
+    }
+    
+    tft.setCursor(100,107);
+    tft.setRotation(3);
+    tft.setTextSize(2);
+    if(hourSelected){
+        tft.setTextColor(ILI9341_BLACK);
+        tft.print("Hour: ");
+        if(setpoint.startTime.hour  > 12){
+            tft.print(setpoint.startTime.hour % 12);
+        }else{
+            tft.print(setpoint.startTime.hour);
+        }
+    }else{
+        tft.setTextColor(ILI9341_LIGHTGREY);
+        tft.print("Hour: ");
+        if(setpoint.startTime.hour  > 12){
+            tft.print(setpoint.startTime.hour % 12);
+        }else{
+            tft.print(setpoint.startTime.hour);
+        }
+    }
+    
+    if(setpoint.startTime.am){
+        tft.print(" AM");
+    }else{
+        tft.print(" PM");
+    }
+    tft.setRotation(0);
+
+    /*Temperature*/
+    if(updateSetTemp){
+        tft.fillRect(138, 94, 20, 50, ILI9341_GREEN);
+        updateSetTemp = true;
+    }
+
+    
+    tft.setCursor(95,140);
+    tft.setRotation(3);
+    tft.setTextSize(2);
+    if(setTempSelected){
+        tft.setTextColor(ILI9341_BLACK);
+        tft.print("Target: ");
+        tft.print(setpoint.temp);
+        tft.print(" F");
+    }else{
+        tft.setTextColor(ILI9341_LIGHTGREY);
+        tft.print("Target: ");
+        tft.print(setpoint.temp);
+        tft.print(" F");
+    }
+    tft.setRotation(0);
+
+    /*HVAC Mode*/
+    if(updateDay){
+        tft.fillRect(170, 113, 20, 30, ILI9341_GREEN);
+        updateSetMode = false;
+    }
+    
+    tft.setCursor(123,173);
+    tft.setRotation(3);
+    tft.setTextSize(2);
+    if(setModeSelected){
+        tft.setTextColor(ILI9341_BLACK);
+        tft.print("Mode: ");
+        if(setpoint.HVACMode == off){
+            tft.setTextColor(ILI9341_LIGHTGREY);
+            tft.print("Off");
+        }
+        else if(setpoint.HVACMode == cool){
+            tft.setTextColor(ILI9341_BLUE);
+            tft.print("Cool");
+        }
+        else if(setpoint.HVACMode == heat){
+            tft.setTextColor(ILI9341_RED);
+            tft.print("Heat");
+        }
+        else if(setpoint.HVACMode == automatic){
+            tft.setTextColor(ILI9341_BLACK);
+            tft.print("Auto");
+        }
+    }else{
+        tft.setTextColor(ILI9341_LIGHTGREY);
+        tft.print("Mode: ");
+        if(setpoint.HVACMode == off){
+            tft.setTextColor(ILI9341_LIGHTGREY);
+            tft.print("Off");
+        }
+        else if(setpoint.HVACMode == cool){
+            tft.setTextColor(ILI9341_BLUE);
+            tft.print("Cool");
+        }
+        else if(setpoint.HVACMode == heat){
+            tft.setTextColor(ILI9341_RED);
+            tft.print("Heat");
+        }
+        else if(setpoint.HVACMode == automatic){
+            tft.setTextColor(ILI9341_BLACK);
+            tft.print("Auto");
+        }
+    }
+    tft.setRotation(0);
+
+    
+    
+}
     
 void drawSetpointDisplay(){
+    tft.setRotation(3);
+    //Draw Weekday/weekend button
+    tft.setCursor(150,20);
+    tft.setTextColor(ILI9341_BLACK); 
+    tft.setTextSize(2);
+    tft.print("Weekend");
+
+    tft.setCursor(90,20);
+    tft.print("Weekday");
+    tft.setRotation(0);  
+    
     tft.drawRect(47, 15, 193, 289, ILI9341_BLACK); 
-    tft.drawRect(7, 264, 33, 33, ILI9341_BLACK);
     tft.drawRect(7, 79, 25, 71, ILI9341_BLACK);
     tft.drawRect(7, 170, 25, 71, ILI9341_BLACK);
     tft.drawRect(215, 27, 17, 17, ILI9341_BLACK);
@@ -759,8 +982,7 @@ void drawSetpointDisplay(){
     tft.setCursor(200 ,20);
     tft.setTextColor(ILI9341_BLACK); 
     tft.setRotation(3);
-    tft.setTextSize(2);
-    tft.print("Weekend");
+    
     tft.setRotation(0);  
 
 
@@ -815,7 +1037,6 @@ void drawSetpointDisplay(){
 
 
 void drawTimedateEdit(){
-    tft.drawRect(7, 264, 33, 33, ILI9341_BLACK);
     tft.drawRect(39, 79, 25, 161, ILI9341_BLACK);
     tft.drawRect(71, 79, 25, 161, ILI9341_BLACK);
     tft.drawRect(103, 79, 25, 161, ILI9341_BLACK);
