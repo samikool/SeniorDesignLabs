@@ -14,18 +14,6 @@ int XM = A3;  // must be an analog pin, use "An" notation!
 int YM = 7;   // can be a digital pin
 int XP = 8;   // can be a digital pin
 
-// This is calibration data for the raw touch data to the screen coordinates
-int TS_MINX = 150;
-int TS_MINY = 120;
-int TS_MAXX = 920;
-int TS_MAXY = 940;
-
-int MINPRESSURE = 10;
-int MAXPRESSURE = 1000;
-
-// For better pressure precision, we need to know the resistance
-// between X+ and X- Use any multimeter to read it
-// For the one we're using, its 300 ohms across the X plate
 TouchScreen ts = TouchScreen(XP, YP, XM, YM, 300);
 
 int acPin = 2; 
